@@ -1,0 +1,22 @@
+defvar conf /files/etc/httpd/conf.d/owncloud.conf
+load
+
+# Get <Directory "/usr/share/owncloud"> subtree
+defvar ocloud_dir $conf/Directory[arg="/usr/share/owncloud/"]
+
+touch $ocloud_dir/directive[last()+1]
+defvar last_stmt $ocloud_dir/directive[last()]
+set $last_stmt Require
+set $last_stmt/arg[1] all
+set $last_stmt/arg[2] granted
+save
+
+### print $conf
+### print $conf/Directory
+### print $conf/Directory/directive[last()]
+### touch $conf/Directory/directive[last()+1]
+### print $conf/Directory/directive
+### set $conf/Directory/directive[last()] Mooooo
+### set $conf/Directory/directive[last()]/arg[1] foo
+### print $conf/Directory/directive
+### # print $conf/Directory

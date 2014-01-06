@@ -1,0 +1,67 @@
+---
+
+- hosts: all
+  sudo: yes
+  tasks:
+  - name: Install packages
+    yum: name={{ item }} state=present
+    with_items:
+    - httpd
+    - php
+    - owncloud
+    - mariadb-server 
+    - php-mysql
+    - owncloud-mysql
+    - iptables-services
+    # we need below for ansible script, really
+    - system-config-firewall-tui
+    - MySQL-python
+    - mod_ssl
+    # we will need this for apache config manipulation
+    - augeas
+
+  - name: Enable services
+    service: name={{ item }} state=started enabled=yes
+    with_items:
+    - httpd
+    - mariadb
+    - iptables
+
+  - name: open up ports
+    command: lokkit --service={{ item }}
+    with_items:
+    - http
+    - https
+    - ssh
+
+  - name: Tune SELinux
+    seboolean: name={{ item }} state=yes persistent=yes
+    with_items:
+    - httpd_can_network_relay
+    - httpd_can_network_connect
+
+  - name: create DB
+    mysql_db: name={{ db_name }} state=present
+
+  - name: create DB user
+    mysql_user: name={{ db_username }}  password={{ db_password }} priv={{ db_name }}.*:ALL state=present
+
+  - name: Enable public access to owncloud
+    lineinfile: dest=/etc/httpd/conf.d/owncloud.conf line="Require all granted" validate="apachectl configtest"
+    when: public_facing == "true"
+
+  - name: Add VHost
+    template: src=httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644
+    notify: httpd restart
+
+  ## reconfigure apache: 
+  ## 1. remove blanket include (?)
+  ## 2. 
+  ## - name: reconfigure httpd
+
+  - name: Setup OwnCloud
+    template: src=owncloud_config.php.j2 dest=/etc/owncloud/config.php mode=0644
+
+  - name: Enable external access to owncloud
+    script: httpd_enable_pub_owncloud
+

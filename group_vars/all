@@ -1,0 +1,14 @@
+public_facing: false
+db_name: owncloud
+db_password: aeweZ9aiB]aiR1e
+db_username: owncloud
+db_hostname: localhost
+
+force_ssl: false
+pw_salt: 9ac3f22d8e682e47262c79f4afb76f
+
+host_name: owncloud.makovey.net
+protocol: https
+web_root: /owncloud
+
+ssl_provider: startSSL
