@@ -1,0 +1,24 @@
+- hosts: all
+  tasks:
+  - name: Testing Foo dicts
+    augeas:
+      command:
+        defvar:
+          conf: /file/etc/httpd/conf.d/owncloud.conf
+        load: 
+        three: 3
+      augdebug: /tmp/aug.log
+
+  - name: Testing Foo lists
+    foo:
+      name: [ 1, 2, 3]
+      state: present
+
+  - name: Testing Foo lists
+    foo:
+      name:
+        - 1
+        - 2
+        - 3
+      state: present
+

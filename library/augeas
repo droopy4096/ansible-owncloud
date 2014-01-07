@@ -1,0 +1,30 @@
+#!/usr/bin/python
+
+
+def main():
+    module = AnsibleModule(
+        argument_spec = dict(
+            command   = dict(required=True),
+            augdebug  = dict(),
+        ),
+        supports_check_mode = True,
+    )
+
+    if module.params['augdebug']:
+        f=open(module.params['augdebug'],'w')
+        command=module.params['command']
+        if type(command) == type(''):
+            f.write(module.params['command'])
+        elif type(command) == type({}):
+            for k in command.keys():
+                f.write('%s %s ' % (k,name[k]))
+        elif type(command) == type([]):
+            for k in command:
+                f.write('%s ' % (k))
+        f.close()
+
+    module.exit_json(changed=True)
+
+# import module snippets
+from ansible.module_utils.basic import *
+main()
