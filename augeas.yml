@@ -1,24 +1,54 @@
 - hosts: all
   tasks:
-  - name: Testing Foo dicts
+  - name: Testing Augeas dicts
     augeas:
-      command:
+      commands:
         defvar:
-          conf: /file/etc/httpd/conf.d/owncloud.conf
+          conf: '/file/etc/httpd/conf.d/owncloud.conf'
         load: 
-        three: 3
+        defvar: 
+          ocloud_dir: '$conf/Directory[arg="/usr/share/owncloud/"]'
+        touch: '$ocloud_dir/directive[last()+1]'
+        defvar:
+          last_stmt: '$ocloud_dir/directive[last()]'
+        set: 
+          node: '$last_stmt'
+          label: Require
+        set:
+          node: '$last_stmt/arg[1]'
+          label: all
+        set:
+          node: '$last_stmt/arg[2]'
+          label: granted
+        save:
+        - moo: boo
+      augdebug: /tmp/aug.log
+
+  - name: Testing Augeas lists
+    augeas:
+      commands:
+        - [ defvar, conf, '/file/etc/httpd/conf.d/owncloud.conf']
+        - load 
+        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+        - [ touch, '$ocloud_dir/directive[last()+1]' ]
+        - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
+        - [ set, '$last_stmt',  Require]
+        - [ set, '$last_stmt/arg[1]', all ]
+        - [ set, '$last_stmt/arg[2]', granted ]
+        - save
       augdebug: /tmp/aug.log
 
   - name: Testing Foo lists
-    foo:
-      name: [ 1, 2, 3]
-      state: present
+    augeas:
+      commands: [ 1, 2, 3]
+      augdebug: /tmp/aug.log
 
   - name: Testing Foo lists
-    foo:
-      name:
+    augeas:
+      commands:
         - 1
         - 2
         - 3
-      state: present
+      augdebug: /tmp/aug.log
+
 

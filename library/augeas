@@ -1,26 +1,44 @@
 #!/usr/bin/python
 
+class AugeasWrapper:
+    def __init__(self):
+        pass
+    def defvar(self,*args,**kwargs):
+        pass
+
+    def load(self,*args,**kwargs):
+        pass
+
+    def touch(self,*args,**kwargs):
+        pass
+
+    def augprint(self,*args,**kwargs):
+        pass
 
 def main():
     module = AnsibleModule(
         argument_spec = dict(
-            command   = dict(required=True),
+            commands   = dict(required=True),
             augdebug  = dict(),
         ),
         supports_check_mode = True,
     )
 
+    commands=module.params['commands']
+    command_list=[]
+    if type(commands) == type(''):
+        # single string
+        command_list.append(commands)
+    elif type(commands) == type({}):
+        for k in commands.keys():
+            command_list.append((k,commands[k]))
+    elif type(commands) == type([]):
+        for c in commands:
+            command_list.append(c)
+
     if module.params['augdebug']:
-        f=open(module.params['augdebug'],'w')
-        command=module.params['command']
-        if type(command) == type(''):
-            f.write(module.params['command'])
-        elif type(command) == type({}):
-            for k in command.keys():
-                f.write('%s %s ' % (k,name[k]))
-        elif type(command) == type([]):
-            for k in command:
-                f.write('%s ' % (k))
+        f=open(module.params['augdebug'],'a')
+        f.write(str(command_list)+"\n")
         f.close()
 
     module.exit_json(changed=True)
