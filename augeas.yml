@@ -1,29 +1,28 @@
 - hosts: all
   tasks:
-  - name: Testing Augeas dicts
-    augeas:
-      commands:
-        defvar:
-          conf: '/file/etc/httpd/conf.d/owncloud.conf'
-        load: 
-        defvar: 
-          ocloud_dir: '$conf/Directory[arg="/usr/share/owncloud/"]'
-        touch: '$ocloud_dir/directive[last()+1]'
-        defvar:
-          last_stmt: '$ocloud_dir/directive[last()]'
-        set: 
-          node: '$last_stmt'
-          label: Require
-        set:
-          node: '$last_stmt/arg[1]'
-          label: all
-        set:
-          node: '$last_stmt/arg[2]'
-          label: granted
-        save:
-        - moo: boo
-      augdebug: /tmp/aug.log
-
+##DISABLE  - name: Testing Augeas dicts
+##DISABLE    augeas:
+##DISABLE      commands:
+##DISABLE        defvar:
+##DISABLE          conf: '/file/etc/httpd/conf.d/owncloud.conf'
+##DISABLE        load: 
+##DISABLE        defvar: 
+##DISABLE          ocloud_dir: '$conf/Directory[arg="/usr/share/owncloud/"]'
+##DISABLE        touch: '$ocloud_dir/directive[last()+1]'
+##DISABLE        defvar:
+##DISABLE          last_stmt: '$ocloud_dir/directive[last()]'
+##DISABLE        set: 
+##DISABLE          node: '$last_stmt'
+##DISABLE          label: Require
+##DISABLE        set:
+##DISABLE          node: '$last_stmt/arg[1]'
+##DISABLE          label: all
+##DISABLE        set:
+##DISABLE          node: '$last_stmt/arg[2]'
+##DISABLE          label: granted
+##DISABLE        save:
+##DISABLE      augdebug: /tmp/aug.log
+##DISABLE
   - name: Testing Augeas lists
     augeas:
       commands:
@@ -38,17 +37,15 @@
         - save
       augdebug: /tmp/aug.log
 
-  - name: Testing Foo lists
-    augeas:
-      commands: [ 1, 2, 3]
-      augdebug: /tmp/aug.log
+  - name: Testing One-liner
+    augeas: commands='set /files/etc/hosts/01/ipaddr 10.10.10.10' augdebug='/tmp/aug.log'
 
-  - name: Testing Foo lists
-    augeas:
-      commands:
-        - 1
-        - 2
-        - 3
-      augdebug: /tmp/aug.log
-
-
+##DISABLE  - name: Testing Foo lists
+##DISABLE    augeas:
+##DISABLE      commands:
+##DISABLE        - 1
+##DISABLE        - 2
+##DISABLE        - 3
+##DISABLE      augdebug: /tmp/aug.log
+##DISABLE
+##DISABLE

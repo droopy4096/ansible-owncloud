@@ -1,25 +1,51 @@
 #!/usr/bin/python
 
+import augeas
+
+log=None
+
+def debug( fn ):
+    def debug_fn(*args,**kwargs):
+        print "DEBUG %s ( %s %s )" % ( fn.__name__, args, kwargs )
+        fn(*args,**kwargs)
+    return debug_fn
+
+
 class AugeasWrapper:
-    def __init__(self):
-        pass
+    def __init__(self,root=None):
+        self.root=root
+        self.aug=augeas.Augeas(self.root)
+
+    @debug
     def defvar(self,*args,**kwargs):
-        pass
+        self.aug.defvar(str(args[0]),str(args[1]))
 
+    @debug
     def load(self,*args,**kwargs):
+        self.aug.load()
+
+    @debug
+    def save(self,*args,**kwargs):
         pass
 
+    @debug
     def touch(self,*args,**kwargs):
         pass
 
+    @debug
+    def set(self,*args,**kwargs):
+        pass
+
+    @debug
     def augprint(self,*args,**kwargs):
         pass
 
 def main():
     module = AnsibleModule(
         argument_spec = dict(
-            commands   = dict(required=True),
-            augdebug  = dict(),
+             commands  = dict(required=True),
+             augdebug  = dict(),
+             augroot      = dict(default=None),
         ),
         supports_check_mode = True,
     )
@@ -28,7 +54,9 @@ def main():
     command_list=[]
     if type(commands) == type(''):
         # single string
-        command_list.append(commands)
+        cmd_array=commands.split()
+        command_list.append(cmd_array)
+
     elif type(commands) == type({}):
         for k in commands.keys():
             command_list.append((k,commands[k]))
@@ -38,9 +66,25 @@ def main():
 
     if module.params['augdebug']:
         f=open(module.params['augdebug'],'a')
-        f.write(str(command_list)+"\n")
+        f.write("\n\t".join(map(str,command_list))+"\n")
         f.close()
 
+    a=AugeasWrapper(module.params['augroot'])
+    for full_command in command_list:
+        if type(full_command) in (type(''),type(u'')):
+            command_name=full_command
+            params=None
+        else:
+            command_name=full_command[0]
+            if len(full_command) > 1:
+                params=full_command[1:]
+            else:
+                params=None
+        command=getattr(a,command_name)
+        if params:
+            command(*params)
+        else:
+            command()
     module.exit_json(changed=True)
 
 # import module snippets
