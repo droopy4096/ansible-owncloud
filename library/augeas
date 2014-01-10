@@ -1,15 +1,17 @@
 #!/usr/bin/python
 
 import augeas
+import logging
 
 log=None
 
 def debug( fn ):
+    global log
     def debug_fn(*args,**kwargs):
-        print "DEBUG %s ( %s %s )" % ( fn.__name__, args, kwargs )
+        if log:
+            log.debug("Called: %s ( %s %s )" % ( fn.__name__, args, kwargs ))
         fn(*args,**kwargs)
     return debug_fn
-
 
 class AugeasWrapper:
     def __init__(self,root=None):
@@ -41,6 +43,7 @@ class AugeasWrapper:
         pass
 
 def main():
+    global log
     module = AnsibleModule(
         argument_spec = dict(
              commands  = dict(required=True),
@@ -65,9 +68,16 @@ def main():
             command_list.append(c)
 
     if module.params['augdebug']:
-        f=open(module.params['augdebug'],'a')
-        f.write("\n\t".join(map(str,command_list))+"\n")
-        f.close()
+        log=logging.getLogger('augeas')
+        log.setLevel(logging.DEBUG)
+        lh=logging.FileHandler(module.params['augdebug'],'a')
+        lf=logging.Formatter('%(levelname)s:%(message)s')
+        lh.setFormatter(lf)
+        log.addHandler(lh)
+        log.info('Starting session...')
+        # logging.basicConfig(module.params['augdebug'],level=logging.DEBUG)
+        for cmd in command_list:
+            log.debug(str(cmd))
 
     a=AugeasWrapper(module.params['augroot'])
     for full_command in command_list:
@@ -85,6 +95,8 @@ def main():
             command(*params)
         else:
             command()
+    if log:
+        log.info('Closing session...')
     module.exit_json(changed=True)
 
 # import module snippets
