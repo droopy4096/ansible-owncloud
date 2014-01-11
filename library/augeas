@@ -10,8 +10,41 @@ def debug( fn ):
     def debug_fn(*args,**kwargs):
         if log:
             log.debug("Called: %s ( %s %s )" % ( fn.__name__, args, kwargs ))
-        fn(*args,**kwargs)
+        return fn(*args,**kwargs)
     return debug_fn
+
+# taken from https://github.com/hercules-team/python-augeas/blob/master/test/test_augeas.py
+def recurmatch(aug, path):
+    global log
+    if path:
+        if path != "/":
+            val = aug.get(path)
+            if val:
+                yield (path, val)
+
+        m = []
+        if path != "/":
+            try:
+                aug.match(path)
+            except RuntimeError, e:
+                log.debug('Augeas failed to match path '+path)
+                raise e
+        for i in m:
+            for x in recurmatch(aug, i):
+                yield x
+        else:
+            for i in aug.match(path + "/*"):
+                for x in recurmatch(aug, i):
+                    yield x
+
+class OperationFailed(Exception):
+    def __init__(self,msg):
+        self.msg=msg
+    def __str__(self):
+        return self.msg
+
+class ConfigurationModified(Exception):
+    pass
 
 class AugeasWrapper:
     def __init__(self,root=None):
@@ -28,19 +61,58 @@ class AugeasWrapper:
 
     @debug
     def save(self,*args,**kwargs):
-        pass
+        raise ConfigurationModified
 
     @debug
     def touch(self,*args,**kwargs):
-        pass
+        self.aug.set(str(args[0]),' ')
+        raise ConfigurationModified
+
+    @debug
+    def match(self,*args,**kwargs):
+        global log
+        try:
+            path=str(args[0])
+            m=self.aug.match(path)
+        except:
+            log.error("Path not found: "+path)
+            m=[]
+        log.debug('Matched: '+str(m))
+        if m == []:
+            raise OperationFailed('match: Path not found: '+path)
+        return m
 
     @debug
     def set(self,*args,**kwargs):
-        pass
+        self.aug.set(str(args[0]),str(args[1]))
+        raise ConfigurationModified
+
+    @debug
+    def get(self,*args,**kwargs):
+        return self.aug.get(str(args[0]))
+    
 
     @debug
     def augprint(self,*args,**kwargs):
-        pass
+        path=str(args[0])
+        matches = recurmatch(self.aug, path)
+        res={}
+        try:
+            for (p, attr) in matches:
+                    res[p]=attr
+        except RuntimeError:
+            log.error("Path not found: "+path)
+            raise OperationFailed('augprint: Path not found: '+path)
+        return res
+
+##DISABLED     real_getattr=__getattr__
+##DISABLED     @debug
+##DISABLED     def __getattr__(self,name):
+##DISABLED         try:
+##DISABLED             return self.real_getattr(name)
+##DISABLED         except:
+##DISABLED             am=getattr(self.aug,name)
+
 
 def main():
     global log
@@ -48,7 +120,7 @@ def main():
         argument_spec = dict(
              commands  = dict(required=True),
              augdebug  = dict(),
-             augroot      = dict(default=None),
+             path      = dict(default=None,aliases=['augroot','change_root']),
         ),
         supports_check_mode = True,
     )
@@ -78,26 +150,54 @@ def main():
         # logging.basicConfig(module.params['augdebug'],level=logging.DEBUG)
         for cmd in command_list:
             log.debug(str(cmd))
+    else:
+        log=logging.getLogger('augeas')
 
-    a=AugeasWrapper(module.params['augroot'])
-    for full_command in command_list:
-        if type(full_command) in (type(''),type(u'')):
-            command_name=full_command
-            params=None
-        else:
-            command_name=full_command[0]
-            if len(full_command) > 1:
-                params=full_command[1:]
-            else:
+    a=AugeasWrapper(module.params['path'])
+    res={}
+    failed=False
+    msg=''
+    changed=False
+    try:
+        for full_command in command_list:
+            if type(full_command) in (type(''),type(u'')):
+                command_name=full_command
                 params=None
-        command=getattr(a,command_name)
-        if params:
-            command(*params)
-        else:
-            command()
+            else:
+                command_name=full_command[0]
+                if len(full_command) > 1:
+                    params=full_command[1:]
+                else:
+                    params=None
+            command=getattr(a,command_name)
+            try:
+                if params:
+                    r=command(*params)
+                    log.debug('Result: '+str(r))
+                    if r:
+                        if not res.has_key(command_name):
+                            res[command_name]=[]
+                        res[command_name].append(r)
+                        log.debug('Current res: '+str(res))
+                else:
+                    r=command()
+                    log.debug('Result: '+str(r))
+                    if r:
+                        if not res.has_key(command_name):
+                            res[command_name]=[]
+                        res[command_name].append(r)
+                        log.debug('Current res: '+str(res))
+            except ConfigurationModified:
+                changed=True
+    except OperationFailed,e:
+        failed=True
+        msg=str(e)
     if log:
         log.info('Closing session...')
-    module.exit_json(changed=True)
+    if failed:
+        module.exit_json(changed=changed,failed=failed,message=msg)
+    else:
+        module.exit_json(changed=changed,failed=failed,results=res)
 
 # import module snippets
 from ansible.module_utils.basic import *

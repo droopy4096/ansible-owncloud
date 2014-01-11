@@ -26,7 +26,7 @@
   - name: Testing Augeas lists
     augeas:
       commands:
-        - [ defvar, conf, '/file/etc/httpd/conf.d/owncloud.conf']
+        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
         - load 
         - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
         - [ touch, '$ocloud_dir/directive[last()+1]' ]
@@ -35,10 +35,22 @@
         - [ set, '$last_stmt/arg[1]', all ]
         - [ set, '$last_stmt/arg[2]', granted ]
         - save
-      augdebug: /tmp/aug.log
+        - [ match, '$last_stmt' ]
+        # - [ match, '$last_stmt/[arg="moo"]' ]
+        - [ augprint, '$conf//directive[.="Require" and arg="all" and arg="granted"]' ]
+      augdebug: /tmp/aug1.log
 
   - name: Testing One-liner
     augeas: commands='set /files/etc/hosts/01/ipaddr 10.10.10.10' augdebug='/tmp/aug.log'
+
+  - name: Testing Augeas lists 2
+    augeas:
+      commands:
+        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
+        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+        # - [ augprint, '$ocloud_dir/[arg="all"]' ]
+        - [ augprint, '$ocloud_dir' ]
+      augdebug: /tmp/aug2.log
 
 ##DISABLE  - name: Testing Foo lists
 ##DISABLE    augeas:
