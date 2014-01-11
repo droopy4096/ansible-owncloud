@@ -64,6 +64,7 @@ class AugeasWrapper:
     def save(self,*args,**kwargs):
         if self.check_mode:
             # We're in check mode - don't ever save!
+            log.debug("Check-mode - skipping save")
             return
         raise ConfigurationModified
 
@@ -204,5 +205,8 @@ def main():
         module.exit_json(changed=changed,failed=failed,results=res)
 
 # import module snippets
-from ansible.module_utils.basic import *
+# from ansible.module_utils.basic import *
+
+#<<INCLUDE_ANSIBLE_MODULE_COMMON>>
+
 main()
