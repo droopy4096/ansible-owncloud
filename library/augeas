@@ -47,9 +47,10 @@ class ConfigurationModified(Exception):
     pass
 
 class AugeasWrapper:
-    def __init__(self,root=None):
+    def __init__(self,root=None,check_mode=False):
         self.root=root
         self.aug=augeas.Augeas(self.root)
+        self.check_mode=check_mode
 
     @debug
     def defvar(self,*args,**kwargs):
@@ -61,6 +62,9 @@ class AugeasWrapper:
 
     @debug
     def save(self,*args,**kwargs):
+        if self.check_mode:
+            # We're in check mode - don't ever save!
+            return
         raise ConfigurationModified
 
     @debug
@@ -153,7 +157,7 @@ def main():
     else:
         log=logging.getLogger('augeas')
 
-    a=AugeasWrapper(module.params['path'])
+    a=AugeasWrapper(module.params['path'],module.check_mode)
     res={}
     failed=False
     msg=''
