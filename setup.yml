@@ -19,6 +19,7 @@
     - mod_ssl
     # we will need this for apache config manipulation
     - augeas
+    - python-augeas
 
   - name: Enable services
     service: name={{ item }} state=started enabled=yes
@@ -46,10 +47,6 @@
   - name: create DB user
     mysql_user: name={{ db_username }}  password={{ db_password }} priv={{ db_name }}.*:ALL state=present
 
-  - name: Enable public access to owncloud
-    lineinfile: dest=/etc/httpd/conf.d/owncloud.conf line="Require all granted" validate="apachectl configtest"
-    when: public_facing == "true"
-
   - name: Add VHost
     template: src=httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644
     notify: httpd restart
@@ -62,6 +59,25 @@
   - name: Setup OwnCloud
     template: src=owncloud_config.php.j2 dest=/etc/owncloud/config.php mode=0644
 
-  - name: Enable external access to owncloud
-    script: httpd_enable_pub_owncloud
+  # - name: Enable external access to owncloud
+  #  script: httpd_enable_pub_owncloud
 
+  - name: Check public access to owncloud
+    augeas: commands='match $conf//directive[.="Require" and arg="all" and arg="granted"]' augdebug="/tmp/check.log"
+    when: public_facing == "true"
+    register: require_all_granted
+
+  - name: Enable external access to owncloud
+    augeas:
+      commands:
+        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
+        - load 
+        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+        - [ touch, '$ocloud_dir/directive[last()+1]' ]
+        - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
+        - [ set, '$last_stmt',  Require]
+        - [ set, '$last_stmt/arg[1]', all ]
+        - [ set, '$last_stmt/arg[2]', granted ]
+        - save
+    when: public_facing == "true"
+    notify: httpd restart
