@@ -24,26 +24,38 @@
 ##DISABLE      augdebug: /tmp/aug.log
 ##DISABLE
   - name: Testing Augeas lists
+    tags: long
     augeas:
+      root: /tmp/aug
       commands:
-        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
         - load 
-        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
-        - [ touch, '$ocloud_dir/directive[last()+1]' ]
-        - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
-        - [ set, '$last_stmt',  Require]
-        - [ set, '$last_stmt/arg[1]', all ]
-        - [ set, '$last_stmt/arg[2]', granted ]
+        # - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
+        # Based on 
+        # http://projects.puppetlabs.com/projects/1/wiki/puppet_augeas
+        - [ defvar, req, '/files/etc/httpd/conf.d/owncloud.conf/Directory[arg="/usr/share/owncloud/"]/directive[.="Require" and arg="all" and arg="granted"]']
+        
+        - [ set, '$req',  Require]
+        - [ set, '$req/arg[1]', all ]
+        - [ set, '$req/arg[2]', granted ]
+        
+        # - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+        # - [ touch, '$ocloud_dir/directive[last()+1]' ]
+        # - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
+        # - [ set, '$last_stmt',  Require]
+        # - [ set, '$last_stmt/arg[1]', all ]
+        # - [ set, '$last_stmt/arg[2]', granted ]
         - save
-        - [ match, '$last_stmt' ]
+        # - [ match, '$last_stmt' ]
         # - [ match, '$last_stmt/[arg="moo"]' ]
-        - [ augprint, '$conf//directive[.="Require" and arg="all" and arg="granted"]' ]
+        # - [ augprint, '$conf//directive[.="Require" and arg="all" and arg="granted"]' ]
       augdebug: /tmp/aug1.log
 
   - name: Testing One-liner
+    tags: oneline
     augeas: commands='set /files/etc/hosts/01/ipaddr 10.10.10.10' augdebug='/tmp/aug.log'
 
   - name: Testing Augeas lists 2
+    tags: long
     augeas:
       commands:
         - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
@@ -51,6 +63,25 @@
         # - [ augprint, '$ocloud_dir/[arg="all"]' ]
         - [ augprint, '$ocloud_dir' ]
       augdebug: /tmp/aug2.log
+
+  - name: Testing conditionals
+    tags: conditionals
+    augeas: 
+      commands:
+        # - [ match, '/files/etc/httpd/conf.d/owncloud.conf//directive[.="Require" and arg="all" and arg="granted"]' ]
+        - [ match, '/files/etc/httpd/conf.d/owncloud.conf//directive[.="Require" and arg="all" and arg="denied"]' ]
+      augdebug: /tmp/check.log
+    register: require_all_granted_match
+    ignore_errors: True
+
+  - name: Testing conditionals part 2
+    tags: conditionals
+    shell: echo "{{ require_all_granted_match["results"]["match"][0][0] }}" > /tmp/echo.log
+
+  - name: Testing conditionals part 3
+    tags: conditionals
+    shell: echo "Found it" > /tmp/require_all_granted.log
+    when: require_all_granted_match["results"]["match"][0][0] 
 
 ##DISABLE  - name: Testing Foo lists
 ##DISABLE    augeas:

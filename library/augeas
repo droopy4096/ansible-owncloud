@@ -47,6 +47,9 @@ class OperationFailed(Exception):
 class ConfigurationModified(Exception):
     pass
 
+class UnknownCommand(OperationFailed):
+    pass
+
 class AugeasWrapper:
 
     def __init__(self,root=None,check_mode=False,strict=False):
@@ -54,10 +57,25 @@ class AugeasWrapper:
         self.aug=augeas.Augeas(self.root)
         self.check_mode=check_mode
         self.strict=strict
+        self.allowed_commands=['set',
+                                'setm',
+                                'match',
+                                'defvar',
+                                'defnode',
+                                'load',
+                                'save',
+                                'touch',
+                                'rm','remove',
+                                'get']
+
 
     @debug
     def defvar(self,*args,**kwargs):
         self.aug.defvar(str(args[0]),str(args[1]))
+
+    @debug
+    def defnode(self,*args,**kwargs):
+        self.aug.defnode(str(args[0]),str(args[1]))
 
     @debug
     def load(self,*args,**kwargs):
@@ -69,6 +87,7 @@ class AugeasWrapper:
             # We're in check mode - don't ever save!
             log.debug("Check-mode - skipping save")
             return
+        self.aug.save()
         raise ConfigurationModified
 
     @debug
@@ -92,7 +111,10 @@ class AugeasWrapper:
 
     @debug
     def set(self,*args,**kwargs):
-        self.aug.set(str(args[0]),str(args[1]))
+        try:
+            self.aug.set(str(args[0]),str(args[1]))
+        except ValueError, ve:
+            raise OperationFailed('set ( %s, %s ): ' % (args[0],args[1]) +str(ve))
         raise ConfigurationModified
 
     @debug
@@ -125,13 +147,16 @@ class AugeasWrapper:
             raise OperationFailed('augprint: Path not found: '+path)
         return res
 
-##DISABLED     real_getattr=__getattr__
-##DISABLED     @debug
-##DISABLED     def __getattr__(self,name):
-##DISABLED         try:
-##DISABLED             return self.real_getattr(name)
-##DISABLED         except:
-##DISABLED             am=getattr(self.aug,name)
+    @debug
+    def noop(self,*args,**kwargs):
+        pass
+
+    @debug
+    def dispatcher(self,cmd)
+        if cmd in self.allowed_commands:
+            m=getattr(self,cmd)
+        else:
+            m=self.noop
 
 
 ## Inputs:
@@ -157,7 +182,7 @@ def main():
              empty     = dict(default=False,choices=BOOLEANS),
              strict    = dict(default=False,choices=BOOLEANS),
              quiet     = dict(default=False,choices=BOOLEANS),
-             path      = dict(default=None,aliases=['augroot','change_root']),
+             path      = dict(default=None,aliases=['augroot','change_root','root']),
         ),
         supports_check_mode = True,
     )
