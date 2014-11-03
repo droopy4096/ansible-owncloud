@@ -52,9 +52,9 @@ class UnknownCommand(OperationFailed):
 
 class AugeasWrapper:
 
-    def __init__(self,root=None,check_mode=False,strict=False):
+    def __init__(self,root=None,check_mode=False,strict=False,flags=augeas.Augeas.NONE):
         self.root=root
-        self.aug=augeas.Augeas(self.root)
+        self.aug=augeas.Augeas(root=self.root,flags=flags)
         self.check_mode=check_mode
         self.strict=strict
         self.allowed_commands=['set',
@@ -180,6 +180,7 @@ def main():
              commands  = dict(required=True),
              augdebug  = dict(),
              empty     = dict(default=False,choices=BOOLEANS),
+             backup    = dict(default=False,choices=BOOLEANS),
              strict    = dict(default=False,choices=BOOLEANS),
              quiet     = dict(default=False,choices=BOOLEANS),
              path      = dict(default=None,aliases=['augroot','change_root','root']),
@@ -191,6 +192,7 @@ def main():
     allow_empty=module.params['empty']
     strict=module.params['strict']
     quiet=module.params['quiet']
+    backup=module.params['backup']
 
     command_list=[]
     if type(commands) == type(''):
@@ -222,7 +224,12 @@ def main():
         log=logging.getLogger('augeas')
         log_debug=False
 
-    a=AugeasWrapper(module.params['path'],module.check_mode,strict)
+    if backup:
+        flags=augeas.Augeas.SAVE_BACKUP
+    else:
+        flags=augeas.Augeas.NONE
+
+    a=AugeasWrapper(module.params['path'],module.check_mode,strict,flags)
     res={}
     failed=False
     msg=''

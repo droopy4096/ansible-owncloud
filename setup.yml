@@ -20,6 +20,8 @@
     # we will need this for apache config manipulation
     - augeas
     - python-augeas
+    # because we'll be pulling modules from Github
+    - git
 
   - name: Enable services
     service: name={{ item }} state=started enabled=yes
@@ -48,7 +50,7 @@
     mysql_user: name={{ db_username }}  password={{ db_password }} priv={{ db_name }}.*:ALL state=present
 
   - name: Add VHost
-    template: src=httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644
+    template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
     notify: httpd restart
 
   ## reconfigure apache: 
@@ -57,7 +59,7 @@
   ## - name: reconfigure httpd
 
   - name: Setup OwnCloud
-    template: src=owncloud_config.php.j2 dest=/etc/owncloud/config.php mode=0644
+    template: src=templates/owncloud-config.php.j2 dest=/etc/owncloud/config.php mode=0644 backup=yes
 
   # - name: Enable external access to owncloud
   #  script: httpd_enable_pub_owncloud
@@ -69,6 +71,7 @@
 
   - name: Enable external access to owncloud
     augeas:
+      backup: yes
       commands:
         - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
         - load 
@@ -81,3 +84,6 @@
         - save
     when: public_facing == "true"
     notify: httpd restart
+
+  - name: Get Notes add-on
+    git: repo=https://github.com/owncloud/notes.git dest=/var/www/owncloud/apps/notes
