@@ -1,22 +1,31 @@
+<VirtualHost *:80>
+	ServerName {{ host_name }}
+	RewriteEngine On
+	RewriteRule ^(.*)$ https://{{ host_name }}$1 [R]
+</VirtualHost>
 <VirtualHost _default_:443>
-	
+
 	ServerName {{ host_name }}:443
 
 	Include conf.d/owncloud.conf
-        
+
 	ErrorLog logs/owncloud_ssl_error_log
 	TransferLog logs/owncloud_ssl_access_log
 	LogLevel warn
 
-	
+
 	SSLEngine on
 	SSLProtocol all -SSLv2
-        SSLCipherSuite ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM
+  SSLCipherSuite ALL:!ADH:!EXPORT:!SSLv2:RC4+RSA:+HIGH:+MEDIUM
 
-	SSLCertificateFile /etc/pki/tls/certs/{{ ssl_provider }}_owncloud.crt
-	SSLCertificateKeyFile /etc/pki/tls/private/{{ ssl_provider }}_owncloud_nopass.key
-	SSLCertificateChainFile /etc/pki/tls/certs/{{ ssl_provider }}_chain_ca.pem
-	SSLCACertificateFile /etc/pki/tls/certs/{{ ssl_provider }}_ca.pem
+	##XXX SSLCertificateFile /etc/pki/tls/certs/{{ ssl_provider }}_owncloud.crt
+	##XXX SSLCertificateKeyFile /etc/pki/tls/private/{{ ssl_provider }}_owncloud_nopass.key
+	##XXX SSLCertificateChainFile /etc/pki/tls/certs/{{ ssl_provider }}_chain_ca.pem
+	##XXX SSLCACertificateFile /etc/pki/tls/certs/{{ ssl_provider }}_ca.pem
+
+	SSLCertificateFile /etc/letsencrypt/live/owncloud.makovey.net/fullchain.pem
+	SSLCertificateKeyFile /etc/letsencrypt/live/owncloud.makovey.net/privkey.pem
+
 
 	<Files ~ "\.(cgi|shtml|phtml|php3?)$">
 	    SSLOptions +StdEnvVars
@@ -24,14 +33,13 @@
 	<Directory "/var/www/cgi-bin">
 	    SSLOptions +StdEnvVars
 	</Directory>
-	
+
 	BrowserMatch "MSIE [2-5]" \
 		 nokeepalive ssl-unclean-shutdown \
 		 downgrade-1.0 force-response-1.0
 
-	
+
 	CustomLog logs/owncloud_ssl_request_log \
 		  "%t %h %{SSL_PROTOCOL}x %{SSL_CIPHER}x \"%r\" %b"
 
-</VirtualHost>                                  
-
+</VirtualHost>

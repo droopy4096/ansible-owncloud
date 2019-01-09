@@ -1,0 +1,13 @@
+---
+
+- hosts: all
+  become: yes
+  tasks:
+  - name: shut down apache
+    service: name=httpd state=stopped
+
+  - name: register cert
+    shell: /usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --standalone
+
+  - name: start up apache
+    service: name=httpd state=started

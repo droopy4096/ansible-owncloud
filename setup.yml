@@ -9,7 +9,7 @@
     - httpd
     - php
     - owncloud
-    - mariadb-server 
+    - mariadb-server
     - php-mysql
     - owncloud-mysql
     - iptables-services
@@ -22,6 +22,12 @@
     - python-augeas
     # because we'll be pulling modules from Github
     - git
+
+  - name: install certbot
+    get_url:
+      url: https://dl.eff.org/certbot-auto
+      dest: /usr/local/bin/certbot-auto
+      mode: 0755
 
   - name: Enable services
     service: name={{ item }} state=started enabled=yes
@@ -53,9 +59,9 @@
     template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
     notify: httpd restart
 
-  ## reconfigure apache: 
+  ## reconfigure apache:
   ## 1. remove blanket include (?)
-  ## 2. 
+  ## 2.
   ## - name: reconfigure httpd
 
   - name: Setup OwnCloud
@@ -74,7 +80,7 @@
       backup: yes
       commands:
         - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
-        - load 
+        - load
         - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
         - [ touch, '$ocloud_dir/directive[last()+1]' ]
         - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
@@ -83,7 +89,13 @@
         - [ set, '$last_stmt/arg[2]', granted ]
         - save
     when: public_facing == "true"
-    notify: httpd restart
+    # notify: httpd restart
 
   - name: Get Notes add-on
     git: repo=https://github.com/owncloud/notes.git dest=/var/www/owncloud/apps/notes
+
+  - name: add letsencrypt cron
+    cron:
+      name: "letsencrypt update"
+      hour: 3,15
+      job: "/usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --apache"
