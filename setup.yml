@@ -36,13 +36,13 @@
       dest: /usr/local/bin/certbot-auto
       mode: 0755
 
-
   - name: bootstrap certbot
     shell: creates=/etc/letsencrypt/live/owncloud.makovey.net/fullchain.pem /usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --apache
 
-  - name: Add VHost
-    template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
-    notify: httpd restart
+##   - name: Add VHost
+##     template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
+##     notify: httpd restart
+##     when: false
 
   - name: Enable services
     service: name={{ item }} state=started enabled=yes
@@ -52,7 +52,10 @@
     - iptables
 
   - name: open up ports
-    command: lokkit --service={{ item }}
+    firewalld:
+      service: "{{ item }}"
+      permanent: yes
+      state: enabled
     with_items:
     - http
     - https
@@ -75,49 +78,50 @@
   ## 2.
   ## - name: reconfigure httpd
 
-  - name: Setup OwnCloud
-    template: src=templates/owncloud-config.php.j2 dest=/etc/owncloud/config.php mode=0644 backup=yes
-    tags:
-      - owncloud
+##  - name: Setup OwnCloud
+##    template: src=templates/owncloud-config.php.j2 dest=/etc/owncloud/config.php mode=0644 backup=yes
+##    tags:
+##      - owncloud
 
   # - name: Enable external access to owncloud
   #  script: httpd_enable_pub_owncloud
 
-  - name: Check public access to owncloud
-    augeas: commands='match $conf//directive[.="Require" and arg="all" and arg="granted"]' augdebug="/tmp/check.log"
-    when: public_facing == "true"
-    register: require_all_granted
-    tags:
-      - owncloud
-
-  - name: Enable external access to owncloud
-    augeas:
-      backup: yes
-      commands:
-        - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
-        - load
-        - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
-        - [ touch, '$ocloud_dir/directive[last()+1]' ]
-        - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
-        - [ set, '$last_stmt',  Require]
-        - [ set, '$last_stmt/arg[1]', all ]
-        - [ set, '$last_stmt/arg[2]', granted ]
-        - save
-    when: public_facing == "true"
-    # notify: httpd restart
-    tags:
-      - owncloud
-
-  - name: Get Notes add-on
-    git: repo=https://github.com/owncloud/notes.git dest=/var/www/owncloud/apps/notes
-    tags:
-      - owncloud
+##   - name: Check public access to owncloud
+##     augeas: commands='match $conf//directive[.="Require" and arg="all" and arg="granted"]' augdebug="/tmp/check.log"
+##     when: public_facing == "true"
+##     register: require_all_granted
+##     tags:
+##       - owncloud
+##
+##   - name: Enable external access to owncloud
+##     augeas:
+##       backup: yes
+##       commands:
+##         - [ defvar, conf, '/files/etc/httpd/conf.d/owncloud.conf']
+##         - load
+##         - [ defvar, ocloud_dir, '$conf/Directory[arg="/usr/share/owncloud/"]' ]
+##         - [ touch, '$ocloud_dir/directive[last()+1]' ]
+##         - [ defvar, last_stmt, '$ocloud_dir/directive[last()]']
+##         - [ set, '$last_stmt',  Require]
+##         - [ set, '$last_stmt/arg[1]', all ]
+##         - [ set, '$last_stmt/arg[2]', granted ]
+##         - save
+##     when: public_facing == "true"
+##     # notify: httpd restart
+##     tags:
+##       - owncloud
+##
+##   - name: Get Notes add-on
+##     git: repo=https://github.com/owncloud/notes.git dest=/var/www/owncloud/apps/notes
+##     tags:
+##       - owncloud
 
   - name: add letsencrypt cron
     cron:
       name: "letsencrypt update"
       hour: 3,15
       job: "/usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --apache"
+
   handlers:
   - name: httpd restart
     service: name=httpd state=restarted
