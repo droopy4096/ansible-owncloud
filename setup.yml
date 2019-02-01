@@ -1,17 +1,24 @@
 ---
+- hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: bootstrap environment
+      raw: /usr/bin/dnf install -y python libselinux-python libsemanage-python anacron
 
 - hosts: all
-  sudo: yes
+  become: yes
   tasks:
   - name: Install packages
-    yum: name={{ item }} state=present
+    dnf: name={{ item }} state=present
     with_items:
     - httpd
     - php
-    - owncloud
+    - nextcloud
     - mariadb-server
-    - php-mysql
-    - owncloud-mysql
+    - php-mysqlnd
+    - nextcloud-mysql
+    - nextcloud-httpd
     - iptables-services
     # we need below for ansible script, really
     - system-config-firewall-tui
@@ -28,6 +35,14 @@
       url: https://dl.eff.org/certbot-auto
       dest: /usr/local/bin/certbot-auto
       mode: 0755
+
+
+  - name: bootstrap certbot
+    shell: creates=/etc/letsencrypt/live/owncloud.makovey.net/fullchain.pem /usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --apache
+
+  - name: Add VHost
+    template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
+    notify: httpd restart
 
   - name: Enable services
     service: name={{ item }} state=started enabled=yes
@@ -55,10 +70,6 @@
   - name: create DB user
     mysql_user: name={{ db_username }}  password={{ db_password }} priv={{ db_name }}.*:ALL state=present
 
-  - name: Add VHost
-    template: src=templates/httpd_vhost.conf.j2 dest=/etc/httpd/conf.d/owncloud_vhost.conf mode=0644 backup=yes
-    notify: httpd restart
-
   ## reconfigure apache:
   ## 1. remove blanket include (?)
   ## 2.
@@ -66,6 +77,8 @@
 
   - name: Setup OwnCloud
     template: src=templates/owncloud-config.php.j2 dest=/etc/owncloud/config.php mode=0644 backup=yes
+    tags:
+      - owncloud
 
   # - name: Enable external access to owncloud
   #  script: httpd_enable_pub_owncloud
@@ -74,6 +87,8 @@
     augeas: commands='match $conf//directive[.="Require" and arg="all" and arg="granted"]' augdebug="/tmp/check.log"
     when: public_facing == "true"
     register: require_all_granted
+    tags:
+      - owncloud
 
   - name: Enable external access to owncloud
     augeas:
@@ -90,12 +105,19 @@
         - save
     when: public_facing == "true"
     # notify: httpd restart
+    tags:
+      - owncloud
 
   - name: Get Notes add-on
     git: repo=https://github.com/owncloud/notes.git dest=/var/www/owncloud/apps/notes
+    tags:
+      - owncloud
 
   - name: add letsencrypt cron
     cron:
       name: "letsencrypt update"
       hour: 3,15
       job: "/usr/local/bin/certbot-auto certonly -d owncloud.makovey.net -n --apache"
+  handlers:
+  - name: httpd restart
+    service: name=httpd state=restarted
